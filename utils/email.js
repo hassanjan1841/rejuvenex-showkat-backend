@@ -1,148 +1,106 @@
 const nodemailer = require("nodemailer")
 const dns = require('dns').promises;
 
-// Create reusable transporter
+// Create a more robust email transporter with better error handling
 const createEmailTransporter = async () => {
   console.log('Creating email transporter...');
   
-  // Check if required environment variables are set
+  // Check if we have the required environment variables
   if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-    console.error('Missing environment variables:');
-    console.error('EMAIL_USER:', process.env.EMAIL_USER ? 'Set' : 'Not set');
-    console.error('EMAIL_PASS:', process.env.EMAIL_PASS ? 'Set' : 'Not set');
-    throw new Error('Email configuration missing. Please check EMAIL_USER and EMAIL_PASS in .env file');
+    console.error("Email configuration missing. Please check your .env file.");
+    return null;
   }
-
-  console.log('Email credentials found, attempting DNS resolution...');
 
   // Verify DNS resolution first
   try {
+    console.log('Verifying DNS resolution for smtp.gmail.com...');
     const dnsResult = await dns.lookup('smtp.gmail.com');
-    console.log('DNS resolution successful for smtp.gmail.com:', dnsResult);
+    console.log('DNS resolution successful:', dnsResult);
   } catch (error) {
     console.error('DNS resolution failed:', error);
     throw new Error('Cannot resolve smtp.gmail.com. Please check your internet connection and DNS settings.');
   }
 
-  console.log('Creating Nodemailer transporter with the following configuration:');
-  console.log('- Service: gmail');
-  console.log('- Host: smtp.gmail.com');
-  console.log('- Port: 587');
-  console.log('- Secure: false');
-  console.log('- Auth user:', process.env.EMAIL_USER);
-  console.log('- Auth pass: [HIDDEN]');
-  
-  // Create transporter with retry logic
+  // Create the transporter with explicit host and port
   const transporter = nodemailer.createTransport({
-    service: 'gmail',
     host: 'smtp.gmail.com',
     port: 587,
     secure: false,
     auth: {
       user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS
+      pass: process.env.EMAIL_PASS,
     },
     tls: {
       rejectUnauthorized: false,
       ciphers: 'SSLv3',
       minVersion: 'TLSv1.2'
     },
-    debug: true,
-    logger: true,
-    maxConnections: 1,
-    pool: true,
-    maxMessages: 100,
-    rateDelta: 1000,
-    rateLimit: 5
+    debug: process.env.NODE_ENV !== "production", // Only enable debug in development
   });
 
-  // Add event listeners for debugging
-  transporter.on('idle', () => {
-    console.log('SMTP connection is idle');
-  });
-  
-  transporter.on('error', (err) => {
-    console.error('SMTP transporter error:', err);
-  });
-
-  // Verify transporter configuration
-  console.log('Verifying SMTP transporter configuration...');
+  // Verify the transporter configuration
   try {
-    const verifyResult = await transporter.verify();
-    console.log('SMTP verification result:', verifyResult);
-    console.log('SMTP server is ready to send messages');
+    console.log('Verifying SMTP connection...');
+    await transporter.verify();
+    console.log("SMTP server is ready to take our messages");
     return transporter;
   } catch (error) {
-    console.error('SMTP verification failed with error code:', error.code);
-    console.error('SMTP verification error message:', error.message);
-    console.error('SMTP verification error stack:', error.stack);
+    console.error("SMTP connection error:", error);
+    console.error("Please check your email credentials in the .env file.");
+    console.error("For Gmail, make sure you're using an App Password, not your regular password.");
+    console.error("See README.md for instructions on setting up Gmail App Password.");
+    return null;
+  }
+};
+
+// Create the transporter
+let transporter = null;
+
+// Initialize the transporter
+const initTransporter = async () => {
+  if (!transporter) {
+    transporter = await createEmailTransporter();
+  }
+  return transporter;
+};
+
+// Helper function to send emails with better error handling
+const sendEmail = async (mailOptions) => {
+  try {
+    // Ensure transporter is initialized
+    const emailTransporter = await initTransporter();
     
+    if (!emailTransporter) {
+      console.error("Email transporter not configured. Skipping email send.");
+      return false;
+    }
+
+    console.log(`Sending email to: ${mailOptions.to}`);
+    const info = await emailTransporter.sendMail(mailOptions);
+    console.log(`Email sent successfully: ${info.messageId}`);
+    return true;
+  } catch (error) {
+    console.error("Email sending error:", error);
+    
+    // Provide more helpful error messages
     if (error.code === 'EAUTH') {
-      console.error('Authentication failed. This is likely due to incorrect credentials or Gmail security settings.');
-      console.error('For Gmail, make sure you are using an App Password, not your regular password.');
-      console.error('See README.md for instructions on setting up Gmail App Password.');
+      console.error("Authentication failed. Please check your email credentials.");
+      console.error("For Gmail, make sure you're using an App Password, not your regular password.");
+      console.error("See README.md for instructions on setting up Gmail App Password.");
     } else if (error.code === 'ECONNECTION') {
-      console.error('Connection failed. This could be due to network issues or firewall settings.');
+      console.error("Connection failed. Please check your internet connection and try again.");
     } else if (error.code === 'ESOCKET') {
-      console.error('Socket error. The email server might be down or unreachable.');
+      console.error("Socket error. The email server might be down or unreachable.");
+    } else if (error.code === 'EDNS') {
+      console.error("DNS resolution error. Please check your internet connection and DNS settings.");
     }
     
-    throw new Error(`SMTP verification failed: ${error.message}`);
+    return false;
   }
 };
 
-// Helper function to send email with retry logic
-const sendEmail = async (mailOptions, maxRetries = 3) => {
-  console.log('Preparing to send email with options:', {
-    from: mailOptions.from,
-    to: mailOptions.to,
-    subject: mailOptions.subject,
-    // Don't log the full HTML content as it might be large
-    hasHtml: !!mailOptions.html,
-    hasText: !!mailOptions.text
-  });
-  
-  let lastError;
-  
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      console.log(`Attempt ${attempt} of ${maxRetries} to send email...`);
-      const transporter = await createEmailTransporter();
-      
-      console.log('Sending email...');
-      const info = await transporter.sendMail(mailOptions);
-      console.log('Email sent successfully!');
-      console.log('Message ID:', info.messageId);
-      console.log('Response from server:', info.response);
-      return info;
-    } catch (error) {
-      lastError = error;
-      console.error(`Attempt ${attempt} failed with error code:`, error.code);
-      console.error(`Attempt ${attempt} error message:`, error.message);
-      console.error(`Attempt ${attempt} error stack:`, error.stack);
-      
-      if (error.code === 'EAUTH') {
-        console.error('Authentication failed. This is likely due to incorrect credentials or Gmail security settings.');
-        console.error('For Gmail, make sure you are using an App Password, not your regular password.');
-      } else if (error.code === 'ECONNECTION') {
-        console.error('Connection failed. This could be due to network issues or firewall settings.');
-      } else if (error.code === 'ESOCKET') {
-        console.error('Socket error. The email server might be down or unreachable.');
-      }
-      
-      if (attempt < maxRetries) {
-        // Wait before retrying (exponential backoff)
-        const delay = Math.pow(2, attempt) * 1000;
-        console.log(`Retrying in ${delay}ms...`);
-        await new Promise(resolve => setTimeout(resolve, delay));
-      }
-    }
-  }
-  
-  throw new Error(`Failed to send email after ${maxRetries} attempts. Last error: ${lastError.message}`);
-};
-
-exports.sendVerificationEmail = async (email, token) => {
+// Define all email functions
+const sendVerificationEmail = async (email, token) => {
   const verificationUrl = `${process.env.FRONTEND_URL}/verify-email?token=${token}`
 
   const mailOptions = {
@@ -174,7 +132,7 @@ exports.sendVerificationEmail = async (email, token) => {
   return await sendEmail(mailOptions);
 }
 
-exports.sendOrderStatusEmail = async (email, order) => {
+const sendOrderStatusEmail = async (email, order) => {
   const statusMessages = {
     processing: "Your order is being processed",
     shipped: "Your order has been shipped",
@@ -247,7 +205,7 @@ exports.sendOrderStatusEmail = async (email, order) => {
   return await sendEmail(mailOptions);
 }
 
-exports.sendPasswordResetEmail = async (email, token) => {
+const sendPasswordResetEmail = async (email, token) => {
   const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${token}`
 
   const mailOptions = {
@@ -280,7 +238,7 @@ exports.sendPasswordResetEmail = async (email, token) => {
   return await sendEmail(mailOptions);
 }
 
-exports.sendAffiliateStatusEmail = async (email, status) => {
+const sendAffiliateStatusEmail = async (email, status) => {
   const statusMessages = {
     approved: "Your affiliate application has been approved",
     rejected: "Your affiliate application has been rejected",
@@ -322,7 +280,7 @@ exports.sendAffiliateStatusEmail = async (email, status) => {
   return await sendEmail(mailOptions);
 }
 
-exports.sendCredentialsEmail = async (email, password) => {
+const sendCredentialsEmail = async (email, password) => {
   const mailOptions = {
     from: process.env.EMAIL_USER,
     to: email,
@@ -358,3 +316,96 @@ exports.sendCredentialsEmail = async (email, password) => {
 
   return await sendEmail(mailOptions);
 }
+
+// Contact form email function
+const sendContactEmail = async (formData) => {
+  const { name, email, subject, message } = formData;
+  console.log('formdata', formData)
+  // Validate required fields
+  if (!email || !name || !subject || !message) {
+    console.error('Missing required fields for contact email:', { name, email, subject, message });
+    return false;
+  }
+
+  // Validate email format
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    console.error('Invalid email format:', email);
+    return false;
+  }
+
+  // Validate admin email
+  if (!process.env.EMAIL_USER) {
+    console.error('Admin email not configured in environment variables');
+    return false;
+  }
+  
+  // Send confirmation email to customer
+  const customerMailOptions = {
+    from: process.env.EMAIL_USER,
+    to: email,
+    subject: "Thank you for contacting Rejuvenex",
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #6B46C1;">Thank you for contacting Rejuvenex!</h2>
+        <p>Dear ${name},</p>
+        <p>We have received your message and will get back to you as soon as possible.</p>
+        <p><strong>Your message details:</strong></p>
+        <ul>
+          <li><strong>Subject:</strong> ${subject}</li>
+          <li><strong>Message:</strong> ${message}</li>
+        </ul>
+        <p>Best regards,<br>The Rejuvenex Team</p>
+      </div>
+    `
+  };
+
+  // Send notification email to admin
+  const adminMailOptions = {
+    from: process.env.EMAIL_USER,
+    to: process.env.EMAIL_USER,
+    subject: `New Contact Form Submission: ${subject}`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #6B46C1;">New Contact Form Submission</h2>
+        <p><strong>From:</strong> ${name} (${email})</p>
+        <p><strong>Subject:</strong> ${subject}</p>
+        <p><strong>Message:</strong></p>
+        <p>${message}</p>
+      </div>
+    `
+  };
+
+  try {
+    console.log('Sending contact form emails...');
+    console.log('Customer email:', email);
+    console.log('Admin email:', process.env.EMAIL_USER);
+    
+    // Send both emails
+    const [customerEmailSent, adminEmailSent] = await Promise.all([
+      sendEmail(customerMailOptions),
+      sendEmail(adminMailOptions)
+    ]);
+
+    if (!customerEmailSent || !adminEmailSent) {
+      console.error('Email sending failed:', { customerEmailSent, adminEmailSent });
+      throw new Error('Failed to send one or both emails');
+    }
+
+    console.log('Contact form emails sent successfully');
+    return true;
+  } catch (error) {
+    console.error('Error sending contact form emails:', error);
+    return false;
+  }
+};
+
+// Export all functions
+module.exports = {
+  sendVerificationEmail,
+  sendOrderStatusEmail,
+  sendPasswordResetEmail,
+  sendAffiliateStatusEmail,
+  sendCredentialsEmail,
+  sendContactEmail
+};
