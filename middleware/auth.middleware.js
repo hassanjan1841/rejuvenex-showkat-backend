@@ -1,5 +1,6 @@
 const jwt = require("jsonwebtoken")
 const User = require("../models/User.model")
+const { isTokenBlacklisted } = require("../utils/auth")
 
 exports.protect = async (req, res, next) => {
   let token
@@ -13,6 +14,12 @@ exports.protect = async (req, res, next) => {
   }
 
   try {
+    // Check if token is blacklisted
+    const isBlacklisted = await isTokenBlacklisted(token)
+    if (isBlacklisted) {
+      return res.status(401).json({ message: "Not authorized, token has been revoked" })
+    }
+
     const decoded = jwt.verify(token, process.env.JWT_SECRET)
     req.user = await User.findById(decoded.id).select("-password")
     next()

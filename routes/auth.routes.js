@@ -4,8 +4,11 @@ const { check, validationResult } = require("express-validator")
 const jwt = require("jsonwebtoken")
 const crypto = require("crypto")
 const User = require("../models/User.model")
-const { sendVerificationEmail, sendPasswordResetEmail } = require("../utils/email")
+const BlacklistedToken = require("../models/BlacklistedToken.model")
+const { sendVerificationEmail, sendPasswordResetEmail, sendCredentialsEmail } = require("../utils/email")
 const { protect } = require("../middleware/auth.middleware")
+const { generateSecurePassword } = require("../utils/password")
+const { blacklistToken } = require("../utils/auth")
 
 // Generate JWT token
 const generateToken = (id) => {
@@ -23,7 +26,6 @@ router.post(
     check("firstName", "First name is required").not().isEmpty(),
     check("lastName", "Last name is required").not().isEmpty(),
     check("email", "Please include a valid email").isEmail(),
-    // check("password", "Password must be at least 6 characters").isLength({ min: 6 }),
   ],
   async (req, res) => {
     const errors = validationResult(req)
@@ -31,27 +33,19 @@ router.post(
       return res.status(400).json({ errors: errors.array() })
     }
 
-    const { firstName, lastName, email, password } = req.body
+    const { firstName, lastName, email } = req.body
 
     try {
       // Check if user already exists
-      console.log('find kerny se pelhly')
-      
-      let user
-      try {
-        user = await User.findOne({ email })
-      } catch (error) {
-        console.error("Error finding user:", error)
-        return res.status(500).json({ message: "Server error" })
-      }
-      
+      let user = await User.findOne({ email })
       
       if (user) {
         return res.status(400).json({ message: "User already exists" })
       }
 
-      // Generate verification token
+      // Generate verification token and secure password
       const verificationToken = crypto.randomBytes(20).toString("hex")
+      const password = generateSecurePassword()
 
       // Create new user
       user = new User({
@@ -66,6 +60,9 @@ router.post(
 
       // Send verification email
       await sendVerificationEmail(email, verificationToken)
+      
+      // Send credentials email
+      await sendCredentialsEmail(email, password)
 
       // Return token
       res.status(201).json({
@@ -76,7 +73,7 @@ router.post(
         role: user.role,
         isVerified: user.isVerified,
         token: generateToken(user._id),
-        message: "Registration successful. Please check your email to verify your account.",
+        message: "Registration successful. Please check your email for verification and login credentials.",
       })
     } catch (error) {
       console.error(error)
@@ -90,15 +87,15 @@ router.post(
 // @access  Public
 router.post(
   "/login",
-  [check("email", "Please include a valid email").isEmail(), check("password", "Password is required").exists()],
+  
   async (req, res) => {
-    const errors = validationResult(req)
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() })
-    }
+    // const errors = validationResult(req)
+    // if (!errors.isEmpty()) {
+    //   return res.status(400).json({ errors: errors.array() })
+    // }
 
     const { email, password } = req.body
-
+console.log('email', email, 'password', password)
     try {
       // Check if user exists
       const user = await User.findOne({ email })
@@ -108,6 +105,7 @@ router.post(
 
       // Check if password matches
       const isMatch = await user.comparePassword(password)
+      console.log(isMatch)
       if (!isMatch) {
         return res.status(401).json({ message: "Invalid credentials" })
       }
@@ -233,6 +231,24 @@ router.get("/me", protect, async (req, res) => {
   } catch (error) {
     console.error(error)
     res.status(500).json({ message: "Server error" })
+  }
+})
+
+// @route   POST /api/auth/logout
+// @desc    Logout user and blacklist token
+// @access  Private
+router.post("/logout", protect, async (req, res) => {
+  try {
+    // Get the token from the request header
+    const token = req.headers.authorization.split(" ")[1]
+    
+    // Blacklist the token
+    await blacklistToken(token)
+    
+    res.json({ message: "Logged out successfully" })
+  } catch (error) {
+    console.error("Logout error:", error)
+    res.status(500).json({ message: "Server error during logout" })
   }
 })
 

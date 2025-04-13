@@ -1,18 +1,27 @@
 const express = require("express")
 const router = express.Router()
 const multer = require("multer")
+const path = require("path")
 const { check, validationResult } = require("express-validator")
 const Peptide = require("../models/Peptide.model")
 const { protect, admin } = require("../middleware/auth.middleware")
 const { uploadImage } = require("../utils/cloudinary")
+const { ensureDirectoryExists } = require("../utils/fileUtils")
+
+// Ensure uploads directory exists
+const uploadsDir = path.join(process.cwd(), "uploads")
+ensureDirectoryExists(uploadsDir)
 
 // Set up multer for file uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, "./uploads/")
+    cb(null, uploadsDir)
   },
   filename: (req, file, cb) => {
-    cb(null, new Date().toISOString().replace(/:/g, "-") + file.originalname)
+    // Create a safe filename
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9)
+    const ext = path.extname(file.originalname)
+    cb(null, uniqueSuffix + ext)
   },
 })
 

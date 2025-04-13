@@ -1,18 +1,28 @@
 const express = require("express")
 const router = express.Router()
 const multer = require("multer")
+const path = require("path")
 const { check, validationResult } = require("express-validator")
 const User = require("../models/User.model")
 const { protect } = require("../middleware/auth.middleware")
 const { uploadImage } = require("../utils/cloudinary")
+const { ensureDirectoryExists } = require("../utils/fileUtils")
+const { blacklistToken } = require("../utils/auth")
+
+// Ensure uploads directory exists
+const uploadsDir = path.join(process.cwd(), "uploads")
+ensureDirectoryExists(uploadsDir)
 
 // Set up multer for file uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, "./uploads/")
+    cb(null, uploadsDir)
   },
   filename: (req, file, cb) => {
-    cb(null, new Date().toISOString().replace(/:/g, "-") + file.originalname)
+    // Create a safe filename
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9)
+    const ext = path.extname(file.originalname)
+    cb(null, uniqueSuffix + ext)
   },
 })
 
@@ -140,8 +150,11 @@ router.put("/profile/image", protect, upload.single("image"), async (req, res) =
       message: "Profile image updated successfully",
     })
   } catch (error) {
-    console.error(error)
-    res.status(500).json({ message: "Server error" })
+    console.error("Profile image upload error:", error)
+    res.status(500).json({ 
+      message: "Failed to upload profile image", 
+      error: error.message 
+    })
   }
 })
 
@@ -180,7 +193,14 @@ router.put(
       user.password = newPassword
       await user.save()
 
-      res.json({ message: "Password updated successfully" })
+      // Blacklist the current token
+      const token = req.headers.authorization.split(" ")[1]
+      await blacklistToken(token)
+
+      res.json({ 
+        message: "Password updated successfully. Please log in again with your new password.",
+        token: null
+      })
     } catch (error) {
       console.error(error)
       res.status(500).json({ message: "Server error" })
