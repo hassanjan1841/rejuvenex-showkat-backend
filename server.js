@@ -8,14 +8,14 @@ const path = require("path");
 dotenv.config();
 
 // Import routes
-const authRoutes = require("./api/routes/auth.routes");
-const userRoutes = require("./api/routes/user.routes");
-const productRoutes = require("./api/routes/product.routes");
-const peptideRoutes = require("./api/routes/peptide.routes");
-const orderRoutes = require("./api/routes/order.routes");
-const affiliateRoutes = require("./api/routes/affiliate.routes");
-const checkoutRoutes = require("./api/routes/checkout.routes");
-const adminRoutes = require("./api/routes/admin.routes");
+const authRoutes = require("./routes/auth.routes");
+const userRoutes = require("./routes/user.routes");
+const productRoutes = require("./routes/product.routes");
+const peptideRoutes = require("./routes/peptide.routes");
+const orderRoutes = require("./routes/order.routes");
+const affiliateRoutes = require("./routes/affiliate.routes");
+const checkoutRoutes = require("./routes/checkout.routes");
+const adminRoutes = require("./routes/admin.routes");
 
 // Initialize Express app
 const app = express();
