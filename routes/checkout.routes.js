@@ -1,13 +1,13 @@
 const express = require("express")
 const router = express.Router()
 const { createPaymentIntent, verifyWebhookSignature } = require("../utils/stripe")
-const { authMiddleware } = require("../middleware/auth.middleware")
+const { protect } = require("../middleware/auth.middleware")
 const Order = require("../models/Order.model")
 const { sendEmail, getOrderConfirmationEmailTemplate } = require("../utils/email")
 const User = require("../models/User.model") // Import the User model
 
 // Create a payment intent
-router.post("/create-payment-intent", authMiddleware, async (req, res) => {
+router.post("/create-payment-intent", protect, async (req, res) => {
   try {
     const { amount, items, shippingDetails } = req.body
 

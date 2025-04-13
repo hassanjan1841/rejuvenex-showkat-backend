@@ -16,6 +16,7 @@ const orderRoutes = require("./routes/order.routes");
 const affiliateRoutes = require("./routes/affiliate.routes");
 const checkoutRoutes = require("./routes/checkout.routes");
 const adminRoutes = require("./routes/admin.routes");
+const connectDB = require("./utils/db");
 
 // Initialize Express app
 const app = express();
@@ -45,21 +46,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Connect to MongoDB
-const connectWithRetry = () => {
-  mongoose
-    .connect(process.env.MONGODB_URI, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-    })
-    .then(() => console.log("MongoDB connected successfully"))
-    .catch((err) => {
-      console.error("MongoDB connection error:", err.message);
-      console.log("Retrying connection in 5 seconds...");
-      setTimeout(connectWithRetry, 5000);
-    });
-};
-
-connectWithRetry();
+connectDB()
 
 // Routes
 app.use("/api/auth", authRoutes);

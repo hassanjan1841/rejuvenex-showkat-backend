@@ -23,7 +23,7 @@ router.post(
     check("firstName", "First name is required").not().isEmpty(),
     check("lastName", "Last name is required").not().isEmpty(),
     check("email", "Please include a valid email").isEmail(),
-    check("password", "Password must be at least 6 characters").isLength({ min: 6 }),
+    // check("password", "Password must be at least 6 characters").isLength({ min: 6 }),
   ],
   async (req, res) => {
     const errors = validationResult(req)
@@ -35,7 +35,17 @@ router.post(
 
     try {
       // Check if user already exists
-      let user = await User.findOne({ email })
+      console.log('find kerny se pelhly')
+      
+      let user
+      try {
+        user = await User.findOne({ email })
+      } catch (error) {
+        console.error("Error finding user:", error)
+        return res.status(500).json({ message: "Server error" })
+      }
+      
+      
       if (user) {
         return res.status(400).json({ message: "User already exists" })
       }
