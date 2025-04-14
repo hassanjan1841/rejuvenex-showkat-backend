@@ -21,11 +21,12 @@ const connectDB = require("./utils/db");
 
 // Initialize Express app
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 3000;
 
 app.get("/", (req, res) => res.send("Express on Vercel"));
 
 // Connect to MongoDB
+console.log(process.env.MONGODB_URI);
 mongoose
   .connect(process.env.MONGODB_URI)
   .then(() => console.log("MongoDB connected"))
