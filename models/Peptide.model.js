@@ -1,48 +1,83 @@
 const mongoose = require("mongoose")
 
-const ResearchInfoSchema = new mongoose.Schema({
-  title: String,
-  content: String,
-  image: String,
-})
-
-const PeptideSchema = new mongoose.Schema(
+const peptideSchema = new mongoose.Schema(
   {
     name: {
       type: String,
       required: true,
+      trim: true,
     },
-    shortName: String,
     description: {
       type: String,
       required: true,
     },
-    usage: {
-      disclaimer: {
-        type: String,
-        required: true,
-      },
-      instructions: String,
+    benefits: [{
+      type: String,
+      required: true,
+    }],
+    dosage: {
+      type: String,
+      required: true,
     },
-    researchInfo: [ResearchInfoSchema],
-    relatedProducts: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "Product",
-      },
-    ],
-    isActive: {
-      type: Boolean,
-      default: true,
+    sideEffects: [{
+      type: String,
+    }],
+    storage: {
+      type: String,
+      required: true,
     },
-    createdAt: {
-      type: Date,
-      default: Date.now,
+    category: {
+      type: String,
+      required: true,
+      enum: ["research", "clinical", "experimental"],
+    },
+    status: {
+      type: String,
+      required: true,
+      enum: ["active", "inactive"],
+      default: "active",
+    },
+    images: [{
+      type: String,
+    }],
+    scientificName: {
+      type: String,
+      required: true,
+    },
+    molecularWeight: {
+      type: String,
+      required: true,
+    },
+    sequence: {
+      type: String,
+      required: true,
+    },
+    purity: {
+      type: String,
+      required: true,
+    },
+    researchPapers: [{
+      title: String,
+      url: String,
+    }],
+    createdBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+    updatedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
     },
   },
   {
     timestamps: true,
-  },
+  }
 )
 
-module.exports = mongoose.model("Peptide", PeptideSchema)
+// Add text index for search functionality
+peptideSchema.index({ name: "text", description: "text", scientificName: "text" })
+
+const Peptide = mongoose.models.Peptide || mongoose.model("Peptide", peptideSchema)
+
+module.exports = Peptide

@@ -490,6 +490,74 @@ const sendOrderConfirmationEmail = async (email, order) => {
   return await sendEmail(mailOptions);
 }
 
+// Send order notification to admin
+const sendOrderNotificationToAdmin = async (order) => {
+  const adminEmail = process.env.EMAIL_USER; // Using the same email as the sender
+  
+  const mailOptions = {
+    from: process.env.EMAIL_USER,
+    to: adminEmail,
+    subject: `New Order Received - Order #${order._id}`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
+        <h2 style="color: #333; border-bottom: 1px solid #eee; padding-bottom: 10px;">New Order Received</h2>
+        
+        <div style="margin-bottom: 20px;">
+          <p><strong>Order Number:</strong> ${order._id}</p>
+          <p><strong>Date:</strong> ${new Date(order.createdAt).toLocaleString()}</p>
+          <p><strong>Status:</strong> <span style="color: #f59e0b;">${order.status}</span></p>
+        </div>
+        
+        <div style="margin-bottom: 20px;">
+          <h3 style="color: #333; font-size: 16px;">Customer Information</h3>
+          <p><strong>Name:</strong> ${order.shippingAddress.firstName} ${order.shippingAddress.lastName}</p>
+          <p><strong>Email:</strong> ${order.shippingAddress.email}</p>
+          <p><strong>Phone:</strong> ${order.shippingAddress.phone || 'Not provided'}</p>
+          <p><strong>Address:</strong> ${order.shippingAddress.address}, ${order.shippingAddress.city}, ${order.shippingAddress.state} ${order.shippingAddress.zipCode}, ${order.shippingAddress.country}</p>
+        </div>
+        
+        <div style="margin-bottom: 20px;">
+          <h3 style="color: #333; font-size: 16px;">Order Summary</h3>
+          <table style="width: 100%; border-collapse: collapse; margin-bottom: 15px;">
+            <thead>
+              <tr style="background-color: #f9fafb;">
+                <th style="padding: 10px; text-align: left; border-bottom: 1px solid #e5e7eb;">Product</th>
+                <th style="padding: 10px; text-align: right; border-bottom: 1px solid #e5e7eb;">Quantity</th>
+                <th style="padding: 10px; text-align: right; border-bottom: 1px solid #e5e7eb;">Price</th>
+                <th style="padding: 10px; text-align: right; border-bottom: 1px solid #e5e7eb;">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${order.items.map(item => `
+                <tr>
+                  <td style="padding: 10px; text-align: left; border-bottom: 1px solid #e5e7eb;">${item.name}</td>
+                  <td style="padding: 10px; text-align: right; border-bottom: 1px solid #e5e7eb;">${item.quantity}</td>
+                  <td style="padding: 10px; text-align: right; border-bottom: 1px solid #e5e7eb;">$${item.price.toFixed(2)}</td>
+                  <td style="padding: 10px; text-align: right; border-bottom: 1px solid #e5e7eb;">$${(item.price * item.quantity).toFixed(2)}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+          
+          <div style="text-align: right; margin-top: 10px;">
+            <p><strong>Subtotal:</strong> $${order.subtotal.toFixed(2)}</p>
+            <p><strong>Shipping:</strong> $${order.shipping.cost.toFixed(2)}</p>
+            <p><strong>Tax:</strong> $${order.tax.toFixed(2)}</p>
+            <p style="font-size: 18px; font-weight: bold; margin-top: 10px;"><strong>Total:</strong> $${order.total.toFixed(2)}</p>
+          </div>
+        </div>
+        
+        <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #e0e0e0; text-align: center; color: #6b7280; font-size: 14px;">
+          <p>This is an automated notification from your e-commerce system.</p>
+          <p>Please log in to your admin dashboard to process this order.</p>
+        </div>
+      </div>
+    `,
+  };
+
+  return sendEmail(mailOptions);
+};
+
 // Export all functions
 module.exports = {
   sendVerificationEmail,
@@ -499,4 +567,5 @@ module.exports = {
   sendCredentialsEmail,
   sendContactEmail,
   sendOrderConfirmationEmail,
+  sendOrderNotificationToAdmin,
 };

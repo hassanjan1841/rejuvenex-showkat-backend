@@ -28,4 +28,6 @@ const categorySchema = new mongoose.Schema({
 // Create text index for search functionality
 categorySchema.index({ name: 'text', description: 'text' });
 
-module.exports = mongoose.model('Category', categorySchema); 
+const Category = mongoose.models.Category || mongoose.model('Category', categorySchema);
+
+module.exports = Category; 
