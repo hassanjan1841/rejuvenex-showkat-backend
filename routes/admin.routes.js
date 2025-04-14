@@ -142,10 +142,46 @@ router.delete("/users/:id", [protect, admin], async (req, res) => {
     if (user._id.toString() === req.user._id.toString()) {
       return res.status(400).json({ message: "Cannot delete your own account" })
     }
-
-    await user.remove()
+    console.log(req.params.id)
+    await User.findByIdAndDelete(req.params.id)
 
     res.json({ message: "User removed" })
+  } catch (error) {
+    console.error(error)
+    if (error.kind === "ObjectId") {
+      return res.status(404).json({ message: "User not found" })
+    }
+    res.status(500).json({ message: "Server error" })
+  }
+})
+
+// @route   PUT /api/admin/users/:id
+// @desc    Update user data
+// @access  Private/Admin
+router.put("/users/:id", [protect, admin], async (req, res) => {
+  const { firstName, lastName, email, phone, role, isVerified } = req.body
+
+  try {
+    const user = await User.findById(req.params.id).select("-password")
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" })
+    }
+
+    // Update user fields
+    if (firstName) user.firstName = firstName
+    if (lastName) user.lastName = lastName
+    if (email) user.email = email
+    if (phone) user.phone = phone
+    if (role) user.role = role
+    if (isVerified !== undefined) user.isVerified = isVerified
+
+    const updatedUser = await user.save()
+
+    res.json({
+      user: updatedUser,
+      message: "User updated successfully",
+    })
   } catch (error) {
     console.error(error)
     if (error.kind === "ObjectId") {
