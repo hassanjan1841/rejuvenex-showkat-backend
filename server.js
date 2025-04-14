@@ -17,6 +17,7 @@ const affiliateRoutes = require("./routes/affiliate.routes");
 const checkoutRoutes = require("./routes/checkout.routes");
 const adminRoutes = require("./routes/admin.routes");
 const contactRoutes = require("./routes/contact.routes");
+const categoryRoutes = require("./routes/categoryRoutes");
 const connectDB = require("./utils/db");
 
 // Initialize Express app
@@ -59,6 +60,7 @@ app.use("/api/affiliates", affiliateRoutes);
 app.use("/api/checkout", checkoutRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/contact", contactRoutes);
+app.use("/api/categories", categoryRoutes);
 
 // Health check route
 app.get("/health", (req, res) => {

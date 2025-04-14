@@ -17,8 +17,8 @@ const storage = multer.diskStorage({
 })
 
 const fileFilter = (req, file, cb) => {
-  // Accept only images
-  if (file.mimetype.startsWith("image/")) {
+  // Accept images including webp
+  if (file.mimetype.startsWith("image/") || file.mimetype === "image/webp") {
     cb(null, true)
   } else {
     cb(new Error("Only image files are allowed"), false)
@@ -287,15 +287,13 @@ router.delete("/:id/images/:index", [protect, admin], async (req, res) => {
 // @access  Private/Admin
 router.delete("/:id", [protect, admin], async (req, res) => {
   try {
-    const product = await Product.findById(req.params.id)
+    const product = await Product.findByIdAndDelete(req.params.id)
 
     if (!product) {
       return res.status(404).json({ message: "Product not found" })
     }
 
-    await product.remove()
-
-    res.json({ message: "Product removed" })
+    res.json({ message: "Product deleted successfully" })
   } catch (error) {
     console.error(error)
     if (error.kind === "ObjectId") {

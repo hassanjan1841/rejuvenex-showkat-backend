@@ -31,8 +31,7 @@ const createEmailTransporter = async () => {
       pass: process.env.EMAIL_PASS,
     },
     tls: {
-      rejectUnauthorized: false,
-      ciphers: 'SSLv3',
+      rejectUnauthorized: true,
       minVersion: 'TLSv1.2'
     },
     debug: process.env.NODE_ENV !== "production", // Only enable debug in development
@@ -133,77 +132,93 @@ const sendVerificationEmail = async (email, token) => {
 }
 
 const sendOrderStatusEmail = async (email, order) => {
-  const statusMessages = {
-    processing: "Your order is being processed",
-    shipped: "Your order has been shipped",
-    delivered: "Your order has been delivered",
-    cancelled: "Your order has been cancelled",
-  }
+  try {
+    // Ensure order has all required properties with default values
+    const orderData = {
+      orderNumber: order.orderNumber || 'N/A',
+      status: order.status || 'Unknown',
+      items: order.items || [],
+      subtotal: order.subtotal || 0,
+      shipping: order.shipping || 0,
+      tax: order.tax || 0,
+      total: order.total || 0,
+      trackingNumber: order.trackingNumber || 'Not available',
+      shippingAddress: order.shippingAddress || {}
+    };
 
-  const mailOptions = {
-    from: process.env.EMAIL_USER,
-    to: email,
-    subject: `Order Update: ${statusMessages[order.status]} - Rejuvenexx`,
-    html: `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #333;">
-        <div style="background: linear-gradient(to right, #000, #0066cc); padding: 20px; color: white; text-align: center;">
-          <h1>Rejuvenexx</h1>
-        </div>
-        <div style="padding: 20px; border: 1px solid #ddd; border-top: none;">
-          <h2>Order Update</h2>
-          <p>Your order #${order._id.toString().slice(-6).toUpperCase()} has been ${order.status}.</p>
+    const mailOptions = {
+      from: process.env.EMAIL_USER,
+      to: email,
+      subject: `Order Status Update - Order #${orderData.orderNumber}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #4a5568;">Order Status Update</h2>
+          <p>Your order #${orderData.orderNumber} has been updated to: <strong>${orderData.status}</strong></p>
           
-          ${order.status === "shipped" ? `<p>Tracking Number: ${order.trackingNumber}</p>` : ""}
-          
-          <div style="margin: 20px 0; padding: 15px; background-color: #f9f9f9; border-radius: 4px;">
-            <h3>Order Summary</h3>
-            <table style="width: 100%; border-collapse: collapse;">
-              <tr style="border-bottom: 1px solid #ddd;">
+          <h3 style="color: #4a5568; margin-top: 20px;">Order Summary</h3>
+          <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+            <thead>
+              <tr style="background-color: #f7fafc;">
                 <th style="text-align: left; padding: 8px;">Product</th>
                 <th style="text-align: center; padding: 8px;">Quantity</th>
                 <th style="text-align: right; padding: 8px;">Price</th>
               </tr>
-              ${order.items
+            </thead>
+            <tbody>
+              ${orderData.items
                 .map(
                   (item) => `
-                <tr style="border-bottom: 1px solid #ddd;">
-                  <td style="padding: 8px;">${item.name}</td>
-                  <td style="text-align: center; padding: 8px;">${item.quantity}</td>
-                  <td style="text-align: right; padding: 8px;">$${item.price.toFixed(2)}</td>
+                <tr>
+                  <td style="padding: 8px;">${item.name || 'Unknown Product'}</td>
+                  <td style="text-align: center; padding: 8px;">${item.quantity || 0}</td>
+                  <td style="text-align: right; padding: 8px;">$${(item.price || 0).toFixed(2)}</td>
                 </tr>
               `,
                 )
                 .join("")}
               <tr>
                 <td colspan="2" style="text-align: right; padding: 8px; font-weight: bold;">Subtotal:</td>
-                <td style="text-align: right; padding: 8px;">$${order.subtotal.toFixed(2)}</td>
+                <td style="text-align: right; padding: 8px;">$${orderData.subtotal.toFixed(2)}</td>
               </tr>
               <tr>
                 <td colspan="2" style="text-align: right; padding: 8px; font-weight: bold;">Shipping:</td>
-                <td style="text-align: right; padding: 8px;">$${order.shipping.toFixed(2)}</td>
+                <td style="text-align: right; padding: 8px;">$${orderData.shipping.toFixed(2)}</td>
               </tr>
               <tr>
                 <td colspan="2" style="text-align: right; padding: 8px; font-weight: bold;">Tax:</td>
-                <td style="text-align: right; padding: 8px;">$${order.tax.toFixed(2)}</td>
+                <td style="text-align: right; padding: 8px;">$${orderData.tax.toFixed(2)}</td>
               </tr>
               <tr>
                 <td colspan="2" style="text-align: right; padding: 8px; font-weight: bold;">Total:</td>
-                <td style="text-align: right; padding: 8px; font-weight: bold;">$${order.total.toFixed(2)}</td>
+                <td style="text-align: right; padding: 8px;">$${orderData.total.toFixed(2)}</td>
               </tr>
-            </table>
-          </div>
+            </tbody>
+          </table>
           
-          <p>Thank you for shopping with Rejuvenexx!</p>
+          <h3 style="color: #4a5568; margin-top: 20px;">Shipping Information</h3>
+          <p>
+            ${orderData.shippingAddress.firstName || ''} ${orderData.shippingAddress.lastName || ''}<br>
+            ${orderData.shippingAddress.address || ''}<br>
+            ${orderData.shippingAddress.city || ''}, ${orderData.shippingAddress.state || ''} ${orderData.shippingAddress.zipCode || ''}<br>
+            ${orderData.shippingAddress.country || ''}
+          </p>
+          
+          ${orderData.trackingNumber !== 'Not available' ? `
+          <h3 style="color: #4a5568; margin-top: 20px;">Tracking Information</h3>
+          <p>Your tracking number is: <strong>${orderData.trackingNumber}</strong></p>
+          ` : ''}
+          
+          <p style="margin-top: 20px;">Thank you for shopping with us!</p>
         </div>
-        <div style="text-align: center; margin-top: 20px; color: #666; font-size: 12px;">
-          <p>© ${new Date().getFullYear()} Rejuvenexx. All rights reserved.</p>
-        </div>
-      </div>
-    `,
-  }
+      `,
+    };
 
-  return await sendEmail(mailOptions);
-}
+    await sendEmail(mailOptions);
+  } catch (error) {
+    console.error("Error sending order status email:", error);
+    throw error;
+  }
+};
 
 const sendPasswordResetEmail = async (email, token) => {
   const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${token}`
@@ -400,6 +415,81 @@ const sendContactEmail = async (formData) => {
   }
 };
 
+const sendOrderConfirmationEmail = async (email, order) => {
+  const mailOptions = {
+    from: process.env.EMAIL_USER,
+    to: email,
+    subject: `Order Confirmation - Rejuvenexx`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #333;">
+        <div style="background: linear-gradient(to right, #000, #0066cc); padding: 20px; color: white; text-align: center;">
+          <h1>Rejuvenexx</h1>
+        </div>
+        <div style="padding: 20px; border: 1px solid #ddd; border-top: none;">
+          <h2>Order Confirmation</h2>
+          <p>Thank you for your order! Your order has been received and is being processed.</p>
+          <p>Order Number: #${order._id.toString().slice(-6).toUpperCase()}</p>
+          
+          <div style="margin: 20px 0; padding: 15px; background-color: #f9f9f9; border-radius: 4px;">
+            <h3>Order Summary</h3>
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr style="border-bottom: 1px solid #ddd;">
+                <th style="text-align: left; padding: 8px;">Product</th>
+                <th style="text-align: center; padding: 8px;">Quantity</th>
+                <th style="text-align: right; padding: 8px;">Price</th>
+              </tr>
+              ${order.items
+                .map(
+                  (item) => `
+                <tr style="border-bottom: 1px solid #ddd;">
+                  <td style="padding: 8px;">${item.name}</td>
+                  <td style="text-align: center; padding: 8px;">${item.quantity}</td>
+                  <td style="text-align: right; padding: 8px;">$${item.price.toFixed(2)}</td>
+                </tr>
+              `,
+                )
+                .join("")}
+              <tr>
+                <td colspan="2" style="text-align: right; padding: 8px; font-weight: bold;">Subtotal:</td>
+                <td style="text-align: right; padding: 8px;">$${order.subtotal.toFixed(2)}</td>
+              </tr>
+              <tr>
+                <td colspan="2" style="text-align: right; padding: 8px; font-weight: bold;">Shipping:</td>
+                <td style="text-align: right; padding: 8px;">$${order.shipping.toFixed(2)}</td>
+              </tr>
+              <tr>
+                <td colspan="2" style="text-align: right; padding: 8px; font-weight: bold;">Tax:</td>
+                <td style="text-align: right; padding: 8px;">$${order.tax.toFixed(2)}</td>
+              </tr>
+              <tr>
+                <td colspan="2" style="text-align: right; padding: 8px; font-weight: bold;">Total:</td>
+                <td style="text-align: right; padding: 8px; font-weight: bold;">$${order.total.toFixed(2)}</td>
+              </tr>
+            </table>
+          </div>
+          
+          <div style="margin: 20px 0; padding: 15px; background-color: #f9f9f9; border-radius: 4px;">
+            <h3>Shipping Information</h3>
+            <p>${order.shippingAddress.firstName} ${order.shippingAddress.lastName}</p>
+            <p>${order.shippingAddress.address}${order.shippingAddress.apartment ? `, ${order.shippingAddress.apartment}` : ''}</p>
+            <p>${order.shippingAddress.city}, ${order.shippingAddress.state} ${order.shippingAddress.zipCode}</p>
+            <p>${order.shippingAddress.country}</p>
+            <p>Phone: ${order.shippingAddress.phone}</p>
+          </div>
+          
+          <p>We'll send you another email when your order ships.</p>
+          <p>Thank you for shopping with Rejuvenexx!</p>
+        </div>
+        <div style="text-align: center; margin-top: 20px; color: #666; font-size: 12px;">
+          <p>© ${new Date().getFullYear()} Rejuvenexx. All rights reserved.</p>
+        </div>
+      </div>
+    `,
+  }
+
+  return await sendEmail(mailOptions);
+}
+
 // Export all functions
 module.exports = {
   sendVerificationEmail,
@@ -407,5 +497,6 @@ module.exports = {
   sendPasswordResetEmail,
   sendAffiliateStatusEmail,
   sendCredentialsEmail,
-  sendContactEmail
+  sendContactEmail,
+  sendOrderConfirmationEmail,
 };

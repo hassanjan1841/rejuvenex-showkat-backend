@@ -5,6 +5,7 @@ const { protect } = require("../middleware/auth.middleware")
 const Order = require("../models/Order.model")
 const { sendEmail, getOrderConfirmationEmailTemplate } = require("../utils/email")
 const User = require("../models/User.model") // Import the User model
+const { calculateOrderTotals } = require("../utils/orderCalculations")
 
 // Create a payment intent
 router.post("/create-payment-intent", protect, async (req, res) => {
@@ -56,6 +57,9 @@ router.post("/webhook", express.raw({ type: "application/json" }), async (req, r
         const items = JSON.parse(itemsJson)
         const shipping = JSON.parse(shippingJson)
 
+        // Calculate order totals
+        const { subtotal, tax, total } = calculateOrderTotals(items, 0); // Free shipping in this example
+
         // Create order in database
         const order = await Order.create({
           user: userId,
@@ -63,7 +67,7 @@ router.post("/webhook", express.raw({ type: "application/json" }), async (req, r
             product: item.id,
             name: item.name,
             quantity: item.quantity,
-            price: paymentIntent.amount / 100 / items.reduce((sum, i) => sum + i.quantity, 0), // Approximate price per item
+            price: item.price,
           })),
           shipping,
           payment: {
@@ -72,10 +76,10 @@ router.post("/webhook", express.raw({ type: "application/json" }), async (req, r
             amount: paymentIntent.amount / 100,
           },
           status: "processing",
-          subtotal: (paymentIntent.amount / 100) * 0.9, // Approximate subtotal (90% of total)
-          tax: (paymentIntent.amount / 100) * 0.1, // Approximate tax (10% of total)
+          subtotal,
+          tax,
           shipping: 0, // Free shipping in this example
-          total: paymentIntent.amount / 100,
+          total,
         })
 
         // Send order confirmation email

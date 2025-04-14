@@ -1,42 +1,110 @@
-# Rejuvenexx Backend
+# Rejuvenex Backend
 
-## Email Configuration
+Backend server for the Rejuvenex peptide store.
 
-To set up email functionality with Gmail, follow these steps:
+## Features
 
-1. Enable 2-Step Verification on your Google Account:
-   - Go to your Google Account settings
-   - Navigate to Security
-   - Enable 2-Step Verification if not already enabled
+- User authentication and authorization
+- Product management
+- Category management
+- Order processing
+- Affiliate system
+- Email notifications
+- Image upload with Cloudinary
+- Payment processing with Stripe
 
-2. Generate an App Password:
-   - Go to your Google Account settings
-   - Navigate to Security
-   - Under "Signing in to Google," select "App passwords"
-   - Select "Mail" as the app and "Other" as the device
-   - Enter a name for the app password (e.g., "Rejuvenexx Backend")
-   - Click "Generate"
-   - Google will display a 16-character password
+## Prerequisites
 
-3. Update your .env file:
-   - Replace the EMAIL_PASS value with the 16-character app password you generated
-   - Make sure EMAIL_USER is set to your Gmail address
+- Node.js (v14 or higher)
+- MongoDB
+- Cloudinary account
+- Stripe account
+- Gmail account (for email notifications)
 
-Example .env configuration:
+## Installation
+
+1. Clone the repository
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+3. Create a `.env` file based on `.env-example`
+4. Set up your environment variables
+
+## Environment Variables
+
 ```
-EMAIL_USER=your.email@gmail.com
-EMAIL_PASS=abcd efgh ijkl mnop  # Your 16-character app password
+MONGODB_URI=your_mongodb_uri
+JWT_SECRET=your_jwt_secret
+EMAIL_USER=your_gmail_address
+EMAIL_PASS=your_gmail_app_password
+CLOUDINARY_CLOUD_NAME=your_cloudinary_cloud_name
+CLOUDINARY_API_KEY=your_cloudinary_api_key
+CLOUDINARY_API_SECRET=your_cloudinary_api_secret
+STRIPE_SECRET_KEY=your_stripe_secret_key
+FRONTEND_URL=http://localhost:5173
+PORT=3000
 ```
 
-Note: The app password is a 16-character code with spaces. You can include or remove the spaces in your .env file.
+## Category Management
 
-## Troubleshooting Email Issues
+The API provides endpoints for managing product categories:
 
-If you encounter email sending errors:
+### Endpoints
 
-1. Verify your Gmail account has 2-Step Verification enabled
-2. Make sure you're using an App Password, not your regular Gmail password
-3. Check that your .env file has the correct credentials
-4. Ensure your Gmail account doesn't have additional security restrictions
+- `GET /api/categories` - Get all active categories
+- `GET /api/categories/:id` - Get a specific category
+- `POST /api/categories` - Create a new category (admin only)
+- `PUT /api/categories/:id` - Update a category (admin only)
+- `DELETE /api/categories/:id` - Delete a category (admin only)
 
-For more information, visit: https://support.google.com/mail/answer/185833 
+### Category Schema
+
+```javascript
+{
+  name: String,          // Required, unique
+  description: String,   // Optional
+  image: String,         // URL to category image
+  isActive: Boolean,     // Default: true
+  createdAt: Date,       // Automatically set
+  updatedAt: Date        // Automatically set
+}
+```
+
+### Testing Categories
+
+1. Create a test image:
+   ```bash
+   npm run create:test-image
+   ```
+
+2. Run category tests:
+   ```bash
+   npm run test:categories
+   ```
+
+## Development
+
+Start the development server:
+```bash
+npm run dev
+```
+
+## Production
+
+Start the production server:
+```bash
+npm start
+```
+
+## API Documentation
+
+For detailed API documentation, please refer to the API docs in the `/docs` directory.
+
+## Contributing
+
+1. Fork the repository
+2. Create your feature branch
+3. Commit your changes
+4. Push to the branch
+5. Create a new Pull Request 
