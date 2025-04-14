@@ -1,6 +1,6 @@
 const Peptide = require("../models/Peptide.model")
 const { uploadToCloudinary } = require("../utils/cloudinary")
-const PeptideContent = require('../models/peptide.model');
+
 const { catchAsync } = require('../utils/catchAsync');
 
 // Get all peptides with pagination and filters
