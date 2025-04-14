@@ -5,7 +5,8 @@ const User = require("../models/User.model")
 const Product = require("../models/Product.model")
 const Affiliate = require("../models/Affiliate.model")
 const { protect, admin } = require("../middleware/auth.middleware")
-const { sendOrderStatusEmail } = require("../utils/email")
+const { sendOrderStatusEmail, sendOrderConfirmationEmail } = require("../utils/email")
+const { calculateOrderTotals } = require("../utils/orderCalculations")
 
 // @route   GET /api/orders
 // @desc    Get all orders (admin only)
@@ -138,26 +139,22 @@ router.put("/:id/status", [protect, admin], async (req, res) => {
 // @access  Private
 router.post("/", protect, async (req, res) => {
   const {
-    orderItems,
+    items,
     shippingAddress,
     paymentMethod,
     paymentDetails,
-    itemsPrice,
-    taxPrice,
-    shippingPrice,
-    totalPrice,
+    shipping,
     affiliateCode,
   } = req.body
 
-  if (!orderItems || orderItems.length === 0) {
+  if (!items || items.length === 0) {
     return res.status(400).json({ message: "No order items" })
   }
 
   try {
     // Check if all products exist and have enough stock
-    for (const item of orderItems) {
+    for (const item of items) {
       const product = await Product.findById(item.product)
-
       if (!product) {
         return res.status(404).json({ message: `Product not found: ${item.product}` })
       }
@@ -173,10 +170,13 @@ router.post("/", protect, async (req, res) => {
       affiliate = await Affiliate.findOne({ referralCode: affiliateCode, status: "approved" })
     }
 
+    // Calculate order totals
+    const { subtotal, tax, total } = calculateOrderTotals(items, shipping || 0);
+
     // Create order
     const order = new Order({
       user: req.user._id,
-      items: orderItems.map((item) => ({
+      items: items.map((item) => ({
         product: item.product,
         name: item.name,
         price: item.price,
@@ -185,35 +185,29 @@ router.post("/", protect, async (req, res) => {
       shippingAddress,
       paymentMethod,
       paymentDetails: paymentDetails || {},
-      subtotal: itemsPrice,
-      tax: taxPrice,
-      shipping: shippingPrice,
-      total: totalPrice,
+      subtotal,
+      tax,
+      shipping: shipping || 0,
+      total,
       affiliateId: affiliate ? affiliate._id : null,
     })
 
     const createdOrder = await order.save()
 
     // Update product stock
-    for (const item of orderItems) {
+    for (const item of items) {
       const product = await Product.findById(item.product)
       product.stock -= item.quantity
       await product.save()
     }
 
-    // Add referral to affiliate if applicable
-    if (affiliate) {
-      const commissionAmount = (totalPrice * affiliate.commission) / 100
-
-      affiliate.referrals.push({
-        order: createdOrder._id,
-        customer: req.user._id,
-        amount: totalPrice,
-        commission: commissionAmount,
-      })
-
-      affiliate.earnings += commissionAmount
-      await affiliate.save()
+    // Send order confirmation email
+    if (shippingAddress && shippingAddress.email) {
+      try {
+        await sendOrderConfirmationEmail(shippingAddress.email, createdOrder)
+      } catch (emailError) {
+        console.error("Failed to send order confirmation email:", emailError)
+      }
     }
 
     res.status(201).json(createdOrder)

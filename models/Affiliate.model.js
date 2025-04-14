@@ -55,4 +55,6 @@ const AffiliateSchema = new mongoose.Schema(
   },
 )
 
-module.exports = mongoose.model("Affiliate", AffiliateSchema)
+const Affiliate = mongoose.models.Affiliate || mongoose.model("Affiliate", AffiliateSchema)
+
+module.exports = Affiliate

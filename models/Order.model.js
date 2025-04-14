@@ -36,7 +36,7 @@ const OrderSchema = new mongoose.Schema(
     },
     paymentMethod: {
       type: String,
-      required: true,
+      required: false,
     },
     paymentDetails: {
       transactionId: String,
@@ -45,19 +45,19 @@ const OrderSchema = new mongoose.Schema(
     },
     subtotal: {
       type: Number,
-      required: true,
+      required: false,
     },
     shipping: {
       type: Number,
-      required: true,
+      required: false,
     },
     tax: {
       type: Number,
-      required: true,
+      required: false,
     },
     total: {
       type: Number,
-      required: true,
+      required: false,
     },
     status: {
       type: String,

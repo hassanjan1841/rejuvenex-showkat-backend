@@ -32,13 +32,13 @@ router.post(
     if (!errors.isEmpty()) {
       return res.status(400).json({ errors: errors.array() })
     }
-
+console.log('reqb.doy register==??> ', req.body)
     const { firstName, lastName, email } = req.body
 
     try {
       // Check if user already exists
       let user = await User.findOne({ email })
-      
+      console.log('suser in register>>>', user)
       if (user) {
         return res.status(400).json({ message: "User already exists" })
       }
@@ -46,7 +46,7 @@ router.post(
       // Generate verification token and secure password
       const verificationToken = crypto.randomBytes(20).toString("hex")
       const password = generateSecurePassword()
-
+// console.log('vrifitionken  ', verificationToken,'pasword',password)
       // Create new user
       user = new User({
         firstName,
@@ -56,6 +56,7 @@ router.post(
         verificationToken,
       })
 
+      
       await user.save()
 
       // Send verification email

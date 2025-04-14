@@ -15,7 +15,8 @@ const ProductSchema = new mongoose.Schema(
       required: true,
     },
     category: {
-      type: String,
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Category',
       required: true,
     },
     dosage: {
@@ -60,4 +61,6 @@ const ProductSchema = new mongoose.Schema(
   },
 )
 
-module.exports = mongoose.model("Product", ProductSchema)
+const Product = mongoose.models.Product || mongoose.model("Product", ProductSchema)
+
+module.exports = Product
