@@ -90,6 +90,7 @@ exports.getProducts = async (req, res) => {
       .skip(skip)
       .limit(parseInt(limit))
       .populate('category', 'name');
+      console.log('category',category,'prudctd',products)
 
     res.json({
       products,

@@ -5,6 +5,7 @@ const { check, validationResult } = require("express-validator")
 const Product = require("../models/Product.model")
 const { protect, admin } = require("../middleware/auth.middleware")
 const { uploadImage } = require("../utils/cloudinary")
+const Category = require("../models/Category.model")
 
 // Set up multer for file uploads
 const storage = multer.diskStorage({
@@ -43,7 +44,7 @@ router.get("/", async (req, res) => {
     // Build filter object
     const filter = { isActive: true }
 
-    if (category) {
+    if (category && category !== 'all') {
       filter.category = category
     }
 
@@ -62,8 +63,12 @@ router.get("/", async (req, res) => {
     // Calculate pagination
     const skip = (Number.parseInt(page) - 1) * Number.parseInt(limit)
 
-    // Get products
-    const products = await Product.find(filter).sort({ createdAt: -1 }).limit(Number.parseInt(limit)).skip(skip)
+    // Get products with populated category
+    const products = await Product.find(filter)
+      .populate('category', 'name')
+      .sort({ createdAt: -1 })
+      .limit(Number.parseInt(limit))
+      .skip(skip)
 
     // Get total count for pagination
     const total = await Product.countDocuments(filter)
@@ -85,7 +90,7 @@ router.get("/", async (req, res) => {
 // @access  Public
 router.get("/categories", async (req, res) => {
   try {
-    const categories = await Product.distinct("category")
+    const categories = await Category.find({ isActive: true })
     res.json(categories)
   } catch (error) {
     console.error(error)

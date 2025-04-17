@@ -1,10 +1,11 @@
-const Category = require('../models/category');
+const Category = require('../models/Category.model');
 const cloudinary = require('../config/cloudinary');
 
 // Get all active categories
 exports.getCategories = async (req, res) => {
   try {
     const categories = await Category.find({ isActive: true });
+    
     res.status(200).json({
       success: true,
       data: categories

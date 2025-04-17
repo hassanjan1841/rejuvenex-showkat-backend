@@ -18,6 +18,7 @@ exports.getPeptides = catchAsync(async (req, res) => {
     .sort({ createdAt: -1 })
     .limit(limit * 1)
     .skip((page - 1) * limit)
+    .populate("category", "name slug")
     .populate("createdBy", "firstName lastName")
     .populate("updatedBy", "firstName lastName")
 
@@ -34,6 +35,7 @@ exports.getPeptides = catchAsync(async (req, res) => {
 // Get a single peptide by ID
 exports.getPeptideById = catchAsync(async (req, res) => {
   const peptide = await Peptide.findById(req.params.id)
+    .populate("category", "name slug")
     .populate("createdBy", "firstName lastName")
     .populate("updatedBy", "firstName lastName")
 
