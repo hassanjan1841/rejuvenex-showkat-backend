@@ -46,27 +46,57 @@ exports.createProduct = async (req, res) => {
 // Get all products with optional filters
 exports.getProducts = async (req, res) => {
   try {
-    const { category, featured, search } = req.query;
+    const { 
+      page = 1, 
+      limit = 12,
+      sortBy = 'newest',
+      category 
+    } = req.query;
+
     const filter = {};
 
+    // Category filter
     if (category) {
       filter.category = category;
     }
 
-    if (featured) {
-      filter.featured = featured === 'true';
+    // Sort options
+    let sort = {};
+    switch (sortBy) {
+      case 'price-low':
+        sort = { price: 1 };
+        break;
+      case 'price-high':
+        sort = { price: -1 };
+        break;
+      case 'name':
+        sort = { name: 1 };
+        break;
+      case 'newest':
+      default:
+        sort = { createdAt: -1 };
+        break;
     }
 
-    if (search) {
-      filter.$or = [
-        { name: { $regex: search, $options: 'i' } },
-        { description: { $regex: search, $options: 'i' } },
-        { sku: { $regex: search, $options: 'i' } }
-      ];
-    }
+    // Calculate skip value for pagination
+    const skip = (parseInt(page) - 1) * parseInt(limit);
 
-    const products = await Product.find(filter).populate('category', 'name');
-    res.json(products);
+    // Get total count for pagination
+    const total = await Product.countDocuments(filter);
+
+    // Get paginated products
+    const products = await Product.find(filter)
+      .sort(sort)
+      .skip(skip)
+      .limit(parseInt(limit))
+      .populate('category', 'name');
+
+    res.json({
+      products,
+      total,
+      page: parseInt(page),
+      totalPages: Math.ceil(total / parseInt(limit))
+    });
   } catch (error) {
     console.error("Error fetching products:", error);
     res.status(500).json({ message: "Error fetching products", error: error.message });

@@ -46,20 +46,21 @@ exports.getPeptideById = catchAsync(async (req, res) => {
 
 // Create a new peptide
 exports.createPeptide = catchAsync(async (req, res) => {
-  const {
-    name,
-    description,
-    benefits,
-    dosage,
-    sideEffects,
-    storage,
-    category,
-    scientificName,
-    molecularWeight,
-    sequence,
-    purity,
-    researchPapers,
-  } = req.body
+  const { sections } = req.body
+  console.log('req.body', sections);
+const {
+  name,
+  description,
+  benefits,
+  dosage,
+  sideEffects,
+  storage,
+  category,
+  scientificName,
+  molecularWeight,
+  sequence,
+  purity,
+  researchPapers,} = sections
 
   // Handle image uploads
   const images = []
@@ -69,6 +70,7 @@ exports.createPeptide = catchAsync(async (req, res) => {
       images.push(result.secure_url)
     }
   }
+  console.log('images', images);
 
   const peptide = new Peptide({
     name,
@@ -162,7 +164,7 @@ exports.deletePeptide = catchAsync(async (req, res) => {
 // Get the latest peptide content
 exports.getPeptideContent = catchAsync(async (req, res) => {
   const content = await Peptide.findOne().sort({ createdAt: -1 });
-  
+
   if (!content) {
     return res.status(404).json({
       status: 'error',
